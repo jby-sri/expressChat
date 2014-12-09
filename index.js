@@ -3,45 +3,9 @@ var express = require('express');
 var app = express();
 var server = require('http').createServer(app);
 var io = require('socket.io')(server);
+var ioMan = require('./io_manager')(io);
 var port = process.env.PORT || 3000;
 
-function decorateMsg(msg, socket) {
-    var message = msg,
-      re = /^\/([a-z]+) +(.+?)$/i,
-      matches = re.exec(msg);
-    if (!matches || matches.length < 2) {
-
-    }
-    else {
-        var command = matches[1],
-          oldname,
-          newname
-          ;
-        console.log(command);
-        switch (command) {
-            case 'nick':
-                oldname = socket.username;
-                newname = matches[2];
-                socket.username = newname;
-                // add the client's username to the global list
-                //usernames[newname] = newname;
-                message = oldname + ' nickname changed ' + newname;
-                io.to(socket.room).emit('notice', {
-                  username: 'admin',
-                  message: message
-                });
-
-                socket.emit('nick_updated', {'nick': newname});
-
-                //이 메시지는 broadcast 할 필요없음
-                return false;
-                break;
-            default:
-                break;
-        }
-    }
-    return message;
-}
 /**
  * 방 정보 업데이트
  *
@@ -128,14 +92,7 @@ io.on('connection', function (socket) {
     var room = socket.room;
       
     if (room !== undefined && rooms[room] !== undefined ) {
-      data = decorateMsg(data, socket);
-
-      if (data) {
-        socket.broadcast.to(room).emit('new message', {
-          username: socket.username,
-          message: data
-        });
-      }
+      ioMan.msgBatch(socket, data);
     }
   });
 
